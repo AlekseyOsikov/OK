@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Карта ИВДИВО</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style type="text/css">
+            html, body { height: 100%; margin: 0; padding: 0; }
+            #content { height: 100%; }
+        </style>
+        <script src="js/territories.js"></script>
+    </head>
+    <body>
+        <div id="content"></div>
+        <script type="text/javascript">
+
+            function readJSON(file, callback) {
+                var xhr = new XMLHttpRequest();
+                xhr.overrideMimeType("application/json");
+                xhr.open('GET', file, true);
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === 4 && xhr.status == "200") {
+                        callback(xhr.responseText);
+                    }
+                }
+                xhr.send(null);
+            }
+
+            function initMap() {
+                
+                function addMarker(map, coord, name) {
+                    if (coord.lat !== 0 && coord.lng !== 0) {
+                        var marker = new google.maps.Marker({
+                            position: coord,
+                            animation: google.maps.Animation.DROP,
+                            title: name
+                        });
+                        if (map !== null && map !== undefined) {
+                            marker.setMap(map);
+                        }
+                        return marker;
+                    } else {
+                        return null;
+                    }
+                }
+    
+                var fileWithGeo = 'http://[domain]/projects/map/data/geo.json', // файл с геоднными подразделений
+                    fileWithPodr = 'data/info.json',  // файл с информацией подразделений
+                    colorHighlight = '#FF0000', // цвет выделения территорий (красный)
+                    isAddMarkers = false; // признак добавления маркеров на карту
+                    
+                var lastFeatureSelect = null,
+                    markers = []; // массив маркеров
+                
+                var podrInfo = new google.maps.InfoWindow({
+                    pixelOffset: {height: -4, width: 0},
+                    content: ''
+                });
+                    
+                var map = new google.maps.Map(document.getElementById("content"), {
+                    zoom: 4,
+                    center: {lat: 55.755833, lng: 37.617778}
+                });
+
+                osmeRegions.geoJSON(fileWithGeo, {}, function (data) {
+
+                    readJSON(fileWithPodr, function(text){
+                        
+                        var podrIVDIVO = JSON.parse(text);
+
+                        var collection = osmeRegions.toGoogle(data, google.maps);
+
+                        collection.add(map);
+                        
+                        collection.setStyles(function(object) {
+                            if (podrIVDIVO[object.properties.osmId] == undefined) {
+                                return {
+                                    strokeOpacity: 0.2,
+                                    fillOpacity: 0
+                                };
+                            }
+                            return {
+                                strokeOpacity: 0.2,
+                                fillColor: podrIVDIVO[object.properties.osmId].color,
+                                fillOpacity: 0.35
+                            };
+                        });
+                        
+                        collection.addEvent('click', function (object1) {
+                            if (podrIVDIVO[object1.properties.osmId] == undefined) {
+                                return;
+                            }
+                            var clr;
+                            if (lastFeatureSelect === null || lastFeatureSelect !== object1) {
+                                lastFeatureSelect = object1;
+                                clr = colorHighlight;
+                            } else {
+                                lastFeatureSelect = null;
+                                clr = podrIVDIVO[object1.properties.osmId].color;
+                            }                    
+                            collection.setStyles(function(object) {
+                                if (podrIVDIVO[object.properties.osmId] == undefined) {
+                                    return {
+                                        strokeOpacity: 0.2,
+                                        fillOpacity: 0
+                                    };
+                                }
+                                return {
+                                    strokeOpacity: 0.2,
+                                    fillColor: (object1 === object) ? clr : podrIVDIVO[object.properties.osmId].color,
+                                    fillOpacity: 0.35
+                                };
+                            });
+                        });
+                        
+                        collection.addEvent('mouseover', function (object, type, target, event) {
+                            if (podrIVDIVO[object.properties.osmId] == undefined) {
+                                return;
+                            }
+                            podrInfo.setContent(podrIVDIVO[object.properties.osmId].name);
+                            podrInfo.setPosition(event.latLng);
+                            podrInfo.open(map);
+                        });
+                        
+                        collection.addEvent('mousemove', function (object, type, target, event) {
+                            if (podrIVDIVO[object.properties.osmId] == undefined) {
+                                return;
+                            }
+                            podrInfo.setContent(podrIVDIVO[object.properties.osmId].name);
+                            podrInfo.setPosition(event.latLng);
+                        });
+
+                        collection.addEvent('mouseout', function () {
+                            podrInfo.setContent('');
+                            podrInfo.close();
+                        });
+
+                        if (isAddMarkers) {
+                            data.features.forEach(function(feature) {
+                                if (podrIVDIVO[feature.properties.osmId] == undefined) {
+                                    return;
+                                }
+                                var podr = podrIVDIVO[feature.properties.osmId];
+                                var marker = addMarker(map, podr.stolp.coord, podr.stolp.name);
+                                if (marker !== null) {
+                                    markers[+feature.properties.osmId] = marker;
+                                }
+                            });
+                        }
+
+                    });
+                    
+                });
+
+            }
+
+        </script>
+        <script async defer
+            src="https://maps.googleapis.com/maps/api/js?v=3.exp&key=[key]&callback=initMap">
+        </script>
+    </body>
+</html>
