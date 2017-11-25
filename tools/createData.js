@@ -169,6 +169,7 @@ class PodrIVDIVO {
         this.matrica[iObj][iGr] = iMatrica;
         // берем внешнюю границу (массив координат / way) ([[x, y]+]) текущего региона
         let granica = this.coordinates[iObj][iGr];
+        //console.log("  " + this.id + ": object № " + (iObj + 1) + "/" + this.coordinates.length + "; borders № " + (iGr + 1) + "/" + this.coordinates[iObj].length + "; count coordinates: " + granica.length);
         this.logger.info("  " + this.id + ": object № " + (iObj + 1) + "/" + this.coordinates.length + "; borders № " + (iGr + 1) + "/" + this.coordinates[iObj].length + "; count coordinates: " + granica.length);
         let iCrd = 0;
         let curIndex = -1;
@@ -208,10 +209,9 @@ class PodrIVDIVO {
                     iMatrica[curIndex].isReverse = isRev;
                     // нашли общую вершину, ищем общий участок границ
                     if (this.seachCommonBorder(iObj, iGr, curIndex)) {
-                        if ((iCrd == granica.length - 1 && typeof granica[0] == "number") || typeof granica[iCrd + 1] == "number") {
-                            iCrd = iMatrica[curIndex].lastPosition;
-                        } else {
-                            iCrd = iMatrica[curIndex].lastPosition - 1;
+                        iCrd = iMatrica[curIndex].lastPosition;
+                        if (iCrd < granica.length - 1 && Array.isArray(granica[iCrd + 1])) {
+                            iCrd--;
                         }
                     }
                     this.logger.debug("      ------------------------------ curIndex: " + curIndex);
@@ -373,7 +373,10 @@ class PodrIVDIVO {
             last--;
         }
         // объединяем крайние участки, если они имеют одинаковых соседей (или не имеют соседей)
-        while (iMatrica[0].sosed == iMatrica[last].sosed && last > 0) {
+        while (this.isEqual(iMatrica[0].sosed, iMatrica[last].sosed)
+                && this.isEqual(iMatrica[0].iSObj, iMatrica[last].iSObj)
+                && this.isEqual(iMatrica[0].iSGr, iMatrica[last].iSGr)
+                && last > 0) {
             if (this.isEqual(iMatrica[0].coordinates, iMatrica[last].coordinates)) {
                 iMatrica.pop();
             } else if (Array.isArray(iMatrica[0].coordinates) && Array.isArray(iMatrica[last].coordinates)) {
@@ -418,7 +421,7 @@ class PodrIVDIVO {
             if (typeof iMatrica[j].coordinates == "number") {
                 newItem2.push(iMatrica[j].coordinates);
             } else if (iMatrica[j].coordinates.length == 1) {
-                warn = warn + "warn: Обнаружена обособленная координата: [" + iMatrica[j].coordinates + "]" + " (ivr: " + this.id + ")" + "\r\n";
+                warn = warn + "warn: Обнаружена обособленная координата (ivr: " + this.id + "): " + iMatrica[j].firstPosition + " ([" + iMatrica[j].coordinates + "])\r\n";
             } else if (iMatrica[j].coordinates.length > 1) {
                 ways[String(++numWay)] = iMatrica[j].coordinates;
                 this.globalData.pairsWay[numWay] = [this.id, iMatrica[j].sosed];
